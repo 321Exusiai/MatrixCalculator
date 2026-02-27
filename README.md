@@ -1,4 +1,4 @@
-```markdown
+``
 # MatrixCalculator: A Layered Linear Algebra Toolkit
 
 ![C++](https://img.shields.io/badge/Language-C%2B%2B17-blue.svg)
