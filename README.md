@@ -84,4 +84,3 @@ Bash./matrix_calc
 
 
 ## Developer: 321Exusiai Course: 高等代数 (Freshman Year WHU 2026 寒假)
-帮我修正一下readme.md
