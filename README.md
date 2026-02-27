@@ -1,5 +1,64 @@
-# MatrixCalculator
-MatrixCalculator: A Layered Linear Algebra Toolkit本项目是一个高性能的线性代数运算库，旨在通过 C++ 实现从基础向量运算到复杂矩阵分解（如 QR 分解、特征值计算）的完整逻辑。🧪 数学原理与代码实现1. 核心数据结构：向量空间 $V^n$ (vector.h)在 Layer 0，我们定义了向量类 Vector<T>。除了基础的加减法，它实现了内积（Dot Product）定义：$$\langle \mathbf{u}, \mathbf{v} \rangle = \sum_{i=1}^{n} u_i v_i$$以及基于 $L^2$ 范数的归一化操作：$$\text{normalize}(\mathbf{v}) = \frac{\mathbf{v}}{\|\mathbf{v}\|}, \quad \text{where } \|\mathbf{v}\| = \sqrt{\langle \mathbf{v}, \mathbf{v} \rangle}$$2. 矩阵消元与 RREF (RREF.h)Layer 2 的核心是 Gauss-Jordan 消元算法。代码中通过主元选择（Pivoting）将矩阵 $A$ 转化为行最简形（Reduced Row Echelon Form）：$$A \xrightarrow{E_k \cdots E_1} \text{RREF}(A)$$在此基础上，我们通过判定主元列（Pivot Columns）的数量来定义矩阵的秩：$$\text{rank}(A) = \#\{\text{pivot columns in RREF}(A)\}$$3. 线性方程组求解 (SolvingEquation.h)对于非齐次线性方程组 $A\mathbf{x} = \mathbf{b}$，程序会自动构建增广矩阵 $(A|\mathbf{b})$ 并进行判定：无解：$\text{rank}(A) < \text{rank}(A|\mathbf{b})$唯一解：$\text{rank}(A) = \text{rank}(A|\mathbf{b}) = n$无穷多解：$\text{rank}(A) = \text{rank}(A|\mathbf{b}) < n$代码会进一步提取通解结构：$\mathbf{x} = \mathbf{x}_p + \sum c_i \mathbf{\eta}_i$，其中 $\mathbf{x}_p$ 是特解，$\mathbf{\eta}_i$ 是齐次解空间的基（Null Space Basis）。4. 向量组的正交化 (VectorSet.h)利用 Gram-Schmidt 正交化过程，我们将一组线性无关的向量 $\{\mathbf{v}_1, \dots, \mathbf{v}_m\}$ 转化为正交基：$$\mathbf{u}_k = \mathbf{v}_k - \sum_{j=1}^{k-1} \text{proj}_{\mathbf{u}_j}(\mathbf{v}_k) = \mathbf{v}_k - \sum_{j=1}^{k-1} \frac{\langle \mathbf{v}_k, \mathbf{u}_j \rangle}{\langle \mathbf{u}_j, \mathbf{u}_j \rangle} \mathbf{u}_j$$5. 特征值计算：QR 迭代法 (matrix.h)这是本项目最硬核的部分。对于方阵 $A$，我们通过连续的 QR 分解进行迭代：令 $A_0 = A$迭代计算：$A_k = Q_k R_k \implies A_{k+1} = R_k Q_k$由于 $A_{k+1} = Q_k^{-1} A_k Q_k$，所有的 $A_k$ 都是相似矩阵。随着 $k \to \infty$，$A_k$ 会收敛为上三角矩阵，其对角线元素即为特征值：$$\text{diag}(A_{\infty}) = \{\lambda_1, \lambda_2, \dots, \lambda_n\}$$📂 项目结构文件职责数学对应vector.h向量原子操作向量空间 $V^n$ 的基本定义matrix.h矩阵存储与 QR 分解线性变换及其分解RREF.h矩阵消元算法线性等价变换VectorSet.h向量组性质分析线性相关性与正交空间SolvingEquation.h方程组自动化求解线性系统解的判定BlockMatrix.h分块矩阵运算矩阵的结构化分解💻 如何使用克隆仓库：Bashgit clone https://github.com/321Exusiai/MatrixCalculator.git
-编译主程序：Bashg++ -std=c++17 main.cpp -o matrix_calc
-运行交互式终端：Bash./matrix_calc
-🎨 开发者说明本项目采用了 移动语义 (std::move) 优化大型矩阵的传递效率，并在底层使用了大量 Template 模板 以支持不同精度（float, double, long double）的运算需求。
+# MatrixCalculator: A Layered Linear Algebra Toolkit
+
+![C++](https://img.shields.io/badge/Language-C%2B%2B17-blue.svg)
+![Build](https://img.shields.io/badge/Build-MinGW--w64-orange.svg)
+
+本项目是一个基于 **C++17** 开发的高性能线性代数工具库。通过严谨的四层架构设计，实现了从底层向量运算到高层方程组求解、特征值计算及分块矩阵运算的完整功能。
+
+---
+
+## 🏗 项目架构 (System Architecture)
+
+代码采用了分层设计（Layered Design），确保了极高的模块化程度和可维护性：
+
+* **Layer 0: `vector.h`** - 原子向量操作。实现向量空间 $V^n$ 的基本定义。
+* **Layer 1: `matrix.h`** - 基础矩阵层。支持矩阵存储、QR 分解及基础行列变换。
+* **Layer 2: `RREF.h`** - 矩阵变换算法。核心实现高斯-约当消元逻辑。
+* **Layer 3: 应用层** * `SolvingEquation.h`: 线性方程组全自动化求解。
+    * `VectorSet.h`: 向量组线性相关性分析及正交化。
+    * `BlockMatrix.h`: 分块矩阵的高阶运算逻辑。
+
+---
+
+## 🧪 数学原理与代码实现
+
+### 1. 向量归一化 (Normalization)
+在 `vector.h` 中，我们实现了基于 $L^2$ 范数的归一化，通过点积 (Dot Product) 计算向量长度：
+$$
+\|\mathbf{v}\| = \sqrt{\sum_{i=1}^n v_i^2} \implies \hat{\mathbf{v}} = \frac{\mathbf{v}}{\|\mathbf{v}\|}
+$$
+
+### 2. 矩阵消元与 RREF 变换
+`RREF.h` 实现了带主元选择的消元算法。通过初等行变换将矩阵 $A$ 转化为行最简形，并自动识别矩阵的秩 (Rank)：
+$$
+\text{rank}(A) = \text{number of non-zero rows in RREF}(A)
+$$
+
+### 3. 线性方程组判定逻辑
+在 `SolvingEquation.h` 中，程序通过比较系数矩阵 $A$ 和增广矩阵 $(A|\mathbf{b})$ 的秩来判定解的状态：
+* **唯一解**: $\text{rank}(A) = \text{rank}(A|\mathbf{b}) = n$
+* **无穷多解**: $\text{rank}(A) = \text{rank}(A|\mathbf{b}) < n$
+* **无解**: $\text{rank}(A) < \text{rank}(A|\mathbf{b})$
+
+### 4. 特征值迭代 (QR Algorithm)
+`matrix.h` 中实现了 QR 分解，结合 `RREF.h` 中的迭代逻辑，通过相似变换寻找特征值：
+$$
+A_k = Q_k R_k \xrightarrow{\text{Iterate}} A_{k+1} = R_k Q_k
+$$
+
+---
+
+## 🚀 性能优化特性
+
+* **移动语义 (Move Semantics)**：在 `BlockMatrix` 与 `Matrix` 类中广泛使用 `std::move`，避免了大型矩阵拷贝带来的性能损耗。
+* **数值稳定性**：在消元逻辑中加入了 `max_index` 寻找最大主元的步骤，有效抑制了浮点数运算中的舍入误差。
+* **鲁棒性 (Robustness)**：利用 C++ 异常处理机制（`std::invalid_argument`），对维度不匹配、除零等非法数学操作进行严格校验。
+
+---
+
+## 🛠 快速上手
+
+### 编译
+本项目无需外部依赖，仅需支持 C++17 的编译器即可：
+```bash
+g++ -std=c++17 main.cpp -o matrix_calc****
