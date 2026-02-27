@@ -3,7 +3,6 @@
 ![C++](https://img.shields.io/badge/Language-C%2B%2B17-blue.svg)
 ![Build](https://img.shields.io/badge/Build-MinGW--w64-orange.svg)
 
-
 本项目是一个基于 **C++17** 开发的高性能线性代数工具库。通过严谨的四层架构设计，实现了从底层向量运算到高层方程组求解、特征值计算及分块矩阵运算的完整功能。
 
 ---
