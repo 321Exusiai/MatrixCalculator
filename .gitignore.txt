@@ -1,0 +1,6 @@
+*.exe
+*.log
+*.txt
+.agent/
+.idea/
+output/
