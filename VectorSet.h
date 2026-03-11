@@ -24,9 +24,9 @@ public:
 
 private:
     std::vector<Vector<T>> vecs;
-    int dim;
-    int rank;
-    std::vector<int> pivotIndices;
+    size_t dim;
+    size_t rank;
+    std::vector<size_t> pivotIndices;
     VectorOrientation orientation;
 
 public:
@@ -44,17 +44,17 @@ public:
         }
 
         Matrix<T> A(
-            orient == VectorOrientation::Column ? dim : static_cast<int>(vecs.size()),
-            orient == VectorOrientation::Column ? static_cast<int>(vecs.size()) : dim
+            orientation == VectorOrientation::Column ? dim : vecs.size(),
+            orientation == VectorOrientation::Column ? vecs.size() : dim
         );
 
-        if (orient == VectorOrientation::Column) {
-            for (int c = 0; c < static_cast<int>(vecs.size()); c++)
-                for (int r = 0; r < dim; r++)
+        if (orientation == VectorOrientation::Column) {
+            for (size_t c = 0; c < vecs.size(); c++)
+                for (size_t r = 0; r < dim; r++)
                     A.at(r, c) = vecs[c][r];
         } else {
-            for (int r = 0; r < static_cast<int>(vecs.size()); r++)
-                for (int c = 0; c < dim; c++)
+            for (size_t r = 0; r < vecs.size(); r++)
+                for (size_t c = 0; c < dim; c++)
                     A.at(r, c) = vecs[r][c];
         }
 
@@ -85,17 +85,17 @@ public:
         }
 
         Matrix<T> A(
-            orient == VectorOrientation::Column ? dim : static_cast<int>(vecs.size()),
-            orient == VectorOrientation::Column ? static_cast<int>(vecs.size()) : dim
+            orientation == VectorOrientation::Column ? dim : vecs.size(),
+            orientation == VectorOrientation::Column ? vecs.size() : dim
         );
 
-        if (orient == VectorOrientation::Column) {
-            for (int c = 0; c < static_cast<int>(vecs.size()); c++)
-                for (int r = 0; r < dim; r++)
+        if (orientation == VectorOrientation::Column) {
+            for (size_t c = 0; c < vecs.size(); c++)
+                for (size_t r = 0; r < dim; r++)
                     A.at(r, c) = vecs[c][r];
         } else {
-            for (int r = 0; r < static_cast<int>(vecs.size()); r++)
-                for (int c = 0; c < dim; c++)
+            for (size_t r = 0; r < vecs.size(); r++)
+                for (size_t c = 0; c < dim; c++)
                     A.at(r, c) = vecs[r][c];
         }
 
@@ -109,17 +109,17 @@ public:
     }
 
     bool isLinearIndependent() const noexcept {
-        return rank == static_cast<int>(vecs.size());
+        return rank == vecs.size();
     }
 
     std::vector<Vector<T>> basis() const {
         std::vector<Vector<T>> b;
-        for (int idx : pivotIndices)
+        for (size_t idx : pivotIndices)
             b.push_back(vecs[idx]);
         return b;
     }
 
-    int dimension() const noexcept { return rank; }
+    size_t dimension() const noexcept { return rank; }
 
     static std::vector<Vector<T>>
     gramSchmidt(const std::vector<Vector<T>>& vectors, bool normalize = false) {

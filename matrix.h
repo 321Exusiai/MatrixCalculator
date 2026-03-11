@@ -16,8 +16,8 @@ template <typename T> class RREF;
 template <typename T>
 class Matrix {
 private:
-    int rows;
-    int cols;
+    size_t rows;
+    size_t cols;
     std::vector<std::vector<T>> data;
 
 public:
@@ -30,9 +30,9 @@ public:
     friend class RREF;
 
     // -------- Constructors --------
-    Matrix(int r, int c)
-        : rows(r), cols(c), data(r, std::vector<T>(c, T())) {
-        if (r <= 0 || c <= 0) {
+    Matrix(size_t r, size_t r3)
+        : rows(r), cols(r3), data(r, std::vector<T>(r3, T())) {
+        if (r == 0 || r3 == 0) {
             throw std::invalid_argument("Matrix dimensions must be positive");
         }
     }
@@ -46,7 +46,7 @@ public:
         rows = static_cast<int>(v.size());
         cols = static_cast<int>(v[0].size());
         for (auto& row : v) {
-            if (static_cast<int>(row.size()) != cols)
+            if (row.size() != cols)
                 throw std::invalid_argument("All rows must have the same length");
         }
         data = v;
@@ -96,65 +96,78 @@ public:
     }
 
     // -------- Basic Accessors --------
-    int getRows() const noexcept { return rows; }
-    int getCols() const noexcept { return cols; }
+    size_t getRows() const noexcept { return rows; }
+    size_t getCols() const noexcept { return cols; }
 
-    T& at(int r, int c) {
-        if (r < 0 || r >= rows || c < 0 || c >= cols)
+    T& at(size_t r, size_t c) {
+        if (r >= rows || c >= cols)
             throw std::out_of_range("Matrix index out of bounds");
         return data[r][c];
     }
 
-    const T& at(int r, int c) const {
-        if (r < 0 || r >= rows || c < 0 || c >= cols)
+    const T& at(size_t r, size_t c) const {
+        if (r >= rows || c >= cols)
             throw std::out_of_range("Matrix index out of bounds");
         return data[r][c];
     }
 
     // -------- Printing --------
     void display() const {
-        std::cout << "Matrix (" << rows << "x" << cols << "):" << std::endl;
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
+        std::cout << "\033[36m" << "Matrix (" << rows << "x" << cols << "):" << "\033[0m" << std::endl;
+        // 顶部边框
+        std::cout << "  \u250c";
+        for (size_t j = 0; j < cols; j++) std::cout << "           ";
+        std::cout << " \u2510" << std::endl;
+
+        for (size_t i = 0; i < rows; i++) {
+            std::cout << "  \u2502 ";
+            for (size_t j = 0; j < cols; j++) {
                 T val = data[i][j];
                 if constexpr (std::is_floating_point_v<T>) {
                     if (std::abs(val) < 1e-9) val = static_cast<T>(0);
                 }
+                if (val == 0) std::cout << "\033[90m"; // 灰色表示0
+                else std::cout << "\033[37m";
                 std::cout << std::setw(10) << val << " ";
+                std::cout << "\033[0m";
             }
-            std::cout << std::endl;
+            std::cout << " \u2502" << std::endl;
         }
-        std::cout << std::endl;
+
+        // 底部边框
+        std::cout << "  \u2514";
+        for (size_t j = 0; j < cols; j++) std::cout << "           ";
+        std::cout << " \u2518" << std::endl;
     }
 
     // -------- Row Operations --------
-    void exchangeRows(int r1, int r2) {
-        if (r1 < 0 || r1 >= rows || r2 < 0 || r2 >= rows)
+    void exchangeRows(size_t r1, size_t r2) {
+        if (r1 >= rows || r2 >= rows)
             throw std::out_of_range("Row index out of bounds");
         std::swap(data[r1], data[r2]);
     }
 
-    void scaleRow(int r, T scalar) {
-        if (r < 0 || r >= rows)
+    void scaleRow(size_t r, T scalar) {
+        if (r >= rows)
             throw std::out_of_range("Row index out of bounds");
-        if constexpr (std::is_floating_point_v<T>) {
-            if (std::fabs(scalar) < 1e-9)
+        if (std::is_floating_point<T>::value) {
+            if (std::abs(static_cast<double>(scalar)) < 1e-9)
                 throw std::invalid_argument("Scaling factor too small");
         }
-        for (int j = 0; j < cols; j++) {
+        for (size_t j = 0; j < cols; j++) {
             data[r][j] *= scalar;
         }
     }
 
-    void addScaledRow(int targetRow, int sourceRow, T scalar) {
-        if (targetRow < 0 || targetRow >= rows || sourceRow < 0 || sourceRow >= rows)
+    void addScaledRow(size_t targetRow, size_t sourceRow, T scalar) {
+        if (targetRow >= rows || sourceRow >= rows)
             throw std::out_of_range("Row index out of bounds");
 
-        if constexpr (std::is_floating_point_v<T>) {
-            if (std::fabs(scalar) < 1e-9) return;
+        if (std::is_floating_point<T>::value) {
+            if (std::abs(static_cast<double>(scalar)) < 1e-9) return;
         }
 
-        for (int j = 0; j < cols; j++) {
+        for (size_t j = 0; j < cols; j++) {
             data[targetRow][j] += data[sourceRow][j] * scalar;
         }
     }
@@ -162,8 +175,8 @@ public:
     // -------- Matrix Operations --------
     Matrix<T> transpose() const {
         Matrix<T> result(cols, rows);
-        for(int col = 0; col < cols; col++)
-            for(int row = 0; row < rows; row++)
+        for(size_t col = 0; col < cols; col++)
+            for(size_t row = 0; row < rows; row++)
                 result.at(col,row) = data[row][col];
         return result;
     }
@@ -172,8 +185,8 @@ public:
         if(rows != other.rows || cols != other.cols)
             throw std::invalid_argument("Matrix dimensions must match for addition");
         Matrix<T> result(rows, cols);
-        for(int i = 0; i < rows; i++)
-            for(int j = 0; j < cols; j++)
+        for(size_t i = 0; i < rows; i++)
+            for(size_t j = 0; j < cols; j++)
                 result.at(i,j) = data[i][j] + other.data[i][j];
         return result;
     }
@@ -192,9 +205,9 @@ public:
         if(cols != other.rows)
             throw std::invalid_argument("Matrix dimensions must match for multiplication");
         Matrix<T> result(rows, other.cols);
-        for(int i = 0; i < rows; i++)
-            for(int j = 0; j < other.cols; j++)
-                for(int k = 0; k < cols; k++)
+        for(size_t i = 0; i < rows; i++)
+            for(size_t j = 0; j < other.cols; j++)
+                for(size_t k = 0; k < cols; k++)
                     result.at(i,j) += data[i][k] * other.data[k][j];
         return result;
     }
@@ -228,8 +241,8 @@ public:
     Matrix<T>& operator+=(const Matrix<T>& other) {
         if(rows != other.rows || cols != other.cols)
             throw std::invalid_argument("Matrix dimensions must match for addition");
-        for(int i = 0; i < rows; i++)
-            for(int j = 0; j < cols; j++)
+        for(size_t i = 0; i < rows; i++)
+            for(size_t j = 0; j < cols; j++)
                 data[i][j] += other.data[i][j];
         return *this;
     }
@@ -247,9 +260,9 @@ public:
         if(cols != other.rows)
             throw std::invalid_argument("Matrix dimensions must match for multiplication");
         Matrix<T> result(rows, other.cols);
-        for(int i = 0; i < rows; i++)
-            for(int j = 0; j < other.cols; j++)
-                for(int k = 0; k < cols; k++)
+        for(size_t i = 0; i < rows; i++)
+            for(size_t j = 0; j < other.cols; j++)
+                for(size_t k = 0; k < cols; k++)
                     result.at(i,j) += data[i][k] * other.data[k][j];
         *this = result;
         return *this;
@@ -290,32 +303,32 @@ public:
         return mat;
     }
 
-    Vector<T> getRow(int r) const {
-        if (r < 0 || r >= rows) throw std::out_of_range("Row index out of bounds");
+    Vector<T> getRow(size_t r) const {
+        if (r >= rows) throw std::out_of_range("Row index out of bounds");
         return Vector<T>(data[r]);
     }
 
-    Vector<T> getCol(int c) const {
-        if (c < 0 || c >= cols) throw std::out_of_range("Col index out of bounds");
+    Vector<T> getCol(size_t c) const {
+        if (c >= cols) throw std::out_of_range("Col index out of bounds");
         std::vector<T> col(rows);
-        for (int i = 0; i < rows; i++) col[i] = data[i][c];
+        for (size_t i = 0; i < rows; i++) col[i] = data[i][c];
         return Vector<T>(col);
     }
 
     Matrix<T> augment(const Matrix<T>& other) const {
         if (rows != other.rows) throw std::invalid_argument("Row count must match for augment");
         Matrix<T> result(rows, cols + other.cols);
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) result.data[i][j] = data[i][j];
-            for (int j = 0; j < other.cols; j++) result.data[i][cols + j] = other.data[i][j];
+        for (size_t i = 0; i < rows; i++) {
+            for (size_t j = 0; j < cols; j++) result.data[i][j] = data[i][j];
+            for (size_t j = 0; j < other.cols; j++) result.data[i][cols + j] = other.data[i][j];
         }
         return result;
     }
 
     bool isSymmetric(T eps = static_cast<T>(1e-9)) const {
         if (rows != cols) return false;
-        for (int i = 0; i < rows; i++) {
-            for (int j = i + 1; j < cols; j++) {
+        for (size_t i = 0; i < rows; i++) {
+            for (size_t j = i + 1; j < cols; j++) {
                 if (std::abs(data[i][j] - data[j][i]) > eps)
                     return false;
             }
@@ -336,8 +349,8 @@ public:
 
     void setToIdentity() {
         if (rows != cols) throw std::invalid_argument("Matrix must be square");
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < rows; j++)
+        for (size_t i = 0; i < rows; i++) {
+            for (size_t j = 0; j < rows; j++)
                 this->at(i, j) = (i == j) ? T(1) : T(0);
         }
     }
@@ -346,7 +359,7 @@ public:
         if (this->rows != this->cols) throw std::invalid_argument("Matrix not square");
         T det = this->determinant(eps);
         if (std::abs(det) < eps) throw std::invalid_argument("Matrix is singular");
-        int n = this->getCols();
+        int n = static_cast<int>(this->getCols());
         Matrix<T> augmentedMatrix = this->augment(Matrix<T>::identity(n));
         for (int i = 0; i < n; i++) {
             if (std::abs(augmentedMatrix.at(i, i)) < eps) throw std::invalid_argument("Numerical singularity");
@@ -371,8 +384,8 @@ public:
         if(this->getRows() != this->getCols()) throw std::invalid_argument("Must be square");
         Matrix<T> qt = this->transpose();
         Matrix<T> res = qt * (*this);
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < rows; j++) {
+        for (size_t i = 0; i < rows; i++) {
+            for (size_t j = 0; j < rows; j++) {
                 T val = res.at(i, j);
                 if (i == j) { if (std::abs(val - 1) > eps) return false; }
                 else { if (std::abs(val) > eps) return false; }
@@ -385,23 +398,23 @@ public:
     // matrix.h 末尾已自动 include RREF.h，调用方无需额外引入
     int rank() const; 
 
-    static Matrix<T> getRankNormalForm(int rows, int cols, int rank){
+    static Matrix<T> getRankNormalForm(size_t rows, size_t cols, size_t rank){
         Matrix<T> result(rows, cols);
-        for(int i = 0; i < rank; i++) result.at(i, i)= T(1);
+        for(size_t i = 0; i < rank; i++) result.at(i, i)= T(1);
         return result;
     }
 
     Matrix<T> getEquivalenceNormalForm() const {
-        int r = this->rank();
+        size_t r = static_cast<size_t>(this->rank());
         return getRankNormalForm(rows, cols, r);
     } 
 
     static T dotProduct(const Matrix<T>& a, const Matrix<T>& b) {
-        int aLen = (a.getRows() == 1) ? a.getCols() : a.getRows();
-        int bLen = (b.getRows() == 1) ? b.getCols() : b.getRows();
+        size_t aLen = (a.getRows() == 1) ? a.getCols() : a.getRows();
+        size_t bLen = (b.getRows() == 1) ? b.getCols() : b.getRows();
         if (aLen != bLen) throw std::invalid_argument("Length mismatch");
         T sum = 0;
-        for (int i = 0; i < aLen; i++) {
+        for (size_t i = 0; i < aLen; i++) {
             T va = (a.getRows() == 1) ? a.at(0, i) : a.at(i, 0);
             T vb = (b.getRows() == 1) ? b.at(0, i) : b.at(i, 0);
             sum += va * vb;
@@ -423,9 +436,9 @@ public:
         Matrix<T> temp(*this);
         T det = 1;
         int sign = 1;
-        for (int i = 0; i < rows; i++) {
-            int maxindex = i;
-            for (int row = i + 1; row < rows; row++) {
+        for (size_t i = 0; i < rows; i++) {
+            size_t maxindex = i;
+            for (size_t row = i + 1; row < rows; row++) {
                 if (std::abs(temp.data[row][i]) > std::abs(temp.data[maxindex][i]))
                     maxindex = row;
             }
@@ -434,14 +447,14 @@ public:
                 temp.exchangeRows(maxindex, i);
                 sign *= -1;
             }
-            for (int row = i + 1; row < rows; row++) {
+            for (size_t row = i + 1; row < rows; row++) {
                 if (std::abs(temp.data[row][i]) < eps) continue;
                 T factor = -temp.data[row][i] / temp.data[i][i];
                 temp.addScaledRow(row, i, factor);
             }
         }
         det = static_cast<T>(sign);
-        for (int i = 0; i < rows; i++) det *= temp.data[i][i];
+        for (size_t i = 0; i < rows; i++) det *= temp.data[i][i];
         return (std::abs(det) < eps) ? 0 : det;
     }
 
@@ -466,9 +479,9 @@ public:
         for(int j=0; j<n; j++) a_cols.push_back(this->getCol(j));
         std::vector<Vector<T>> q_cols;
         
-        for (int i = 0; i < n; i++) {
+        for (size_t i = 0; i < n; i++) {
             Vector<T> u = a_cols[i];
-            for (int j = 0; j < i; j++) {
+            for (size_t j = 0; j < i; j++) {
                 T r_ji = q_cols[j].dot(a_cols[i]);
                 u -= q_cols[j] * r_ji;
             }
@@ -478,13 +491,13 @@ public:
         }
 
         Matrix<T> Q(n, n);
-        for(int j=0; j<n; j++) 
-            for(int i=0; i<n; i++) 
+        for(size_t j=0; j<n; j++) 
+            for(size_t i=0; i<n; i++) 
                 Q.at(i, j) = q_cols[j][i];
 
         Matrix<T> R = Q.transpose() * (*this);
-        for(int i=0; i<n; i++)
-            for(int j=0; j<i; j++)
+        for(size_t i=0; i<n; i++)
+            for(size_t j=0; j<i; j++)
                 R.at(i, j) = 0;
         return {Q, R};
     }

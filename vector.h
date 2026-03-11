@@ -16,7 +16,7 @@ class Vector{
         std::vector<T> data;
     public:
         Vector() = default;
-        explicit Vector(int n, T val = T()) : data(n, val) {}
+        explicit Vector(size_t n, T val = T()) : data(n, val) {}
         explicit Vector(const std::vector<T>& v) : data(v) {}
         explicit Vector(std::vector<T>&& v) noexcept : data(std::move(v)) {}
 
@@ -31,10 +31,10 @@ class Vector{
         Vector(const Vector&) = default;
         Vector& operator=(const Vector&) = default;
 
-        int size() const noexcept { return static_cast<int>(data.size()); }
+        size_t size() const noexcept { return data.size(); }
         
-        T& operator[](int i) { return data.at(i); }
-        const T& operator[](int i) const { return data.at(i); }
+        T& operator[](size_t i) { return data.at(i); }
+        const T& operator[](size_t i) const { return data.at(i); }
 
         const std::vector<T>& raw() const noexcept { return data; }
 
@@ -43,7 +43,7 @@ class Vector{
             if (size() != other.size())
                 throw std::invalid_argument("Vector size mismatch");
             std::vector<T> res_vec(size());
-            for (int i = 0; i < size(); i++)
+            for (size_t i = 0; i < size(); i++)
                 res_vec[i] = data[i] + other[i];
             return Vector<T>(res_vec);
         }
@@ -52,14 +52,14 @@ class Vector{
             if (size() != other.size())
                 throw std::invalid_argument("Vector size mismatch");
             std::vector<T> res_vec(size());
-            for (int i = 0; i < size(); i++)
+            for (size_t i = 0; i < size(); i++)
                 res_vec[i] = data[i] - other[i];
             return Vector<T>(res_vec);
         }
 
         Vector<T> operator*(T scalar) const {
             std::vector<T> res_vec(size());
-            for (int i = 0; i < size(); i++)
+            for (size_t i = 0; i < size(); i++)
                 res_vec[i] = data[i] * scalar;
             return Vector<T>(res_vec);
         }
@@ -73,7 +73,7 @@ class Vector{
         Vector<T>& operator+=(const Vector<T>& other) {
             if (size() != other.size())
                 throw std::invalid_argument("Vector size mismatch");
-            for (int i = 0; i < size(); i++)
+            for (size_t i = 0; i < size(); i++)
                 data[i] += other.data[i];
             return *this;
         }
@@ -81,7 +81,7 @@ class Vector{
         Vector<T>& operator-=(const Vector<T>& other) {
             if (size() != other.size())
                 throw std::invalid_argument("Vector size mismatch");
-            for (int i = 0; i < size(); i++)
+            for (size_t i = 0; i < size(); i++)
                 data[i] -= other.data[i];
             return *this;
         }
@@ -107,7 +107,7 @@ class Vector{
                 throw std::invalid_argument("Dot product size mismatch");
 
             T sum = 0;
-            for (int i = 0; i < size(); i++)
+            for (size_t i = 0; i < size(); i++)
                 sum += data[i] * other[i];
             return sum;
         }

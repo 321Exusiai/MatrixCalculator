@@ -9,17 +9,17 @@ class BlockMatrix
 {
 private:
     std::vector<std::vector<Matrix<T> > > blocks;
-    int numRows;
-    int numCols;
-    int blockSize;
+    size_t numRows;
+    size_t numCols;
+    size_t blockSize;
 public:
-    BlockMatrix(int numRows,int numCols,int blockSize):numRows(numRows), numCols(numCols), blockSize(blockSize) 
+    BlockMatrix(size_t numRows,size_t numCols,size_t blockSize):numRows(numRows), numCols(numCols), blockSize(blockSize) 
     {
         blocks.resize(numRows);
-        for(int i = 0; i < numRows; i++)
+        for(size_t i = 0; i < numRows; i++)
         {
             blocks[i].resize(numCols);
-            for(int j = 0; j < numCols; j++)
+            for(size_t j = 0; j < numCols; j++)
             {
                 blocks[i][j] = Matrix<T>(blockSize, blockSize);
             }
@@ -47,32 +47,32 @@ public:
     BlockMatrix& operator=(const BlockMatrix&) = default;
 
     // 获取某个块
-    Matrix<T>& getBlock(int row, int col)
+    Matrix<T>& getBlock(size_t row, size_t col)
     {
-        if (row < 0 || row >= numRows || col < 0 || col >= numCols)
+        if (row >= numRows || col >= numCols)
             throw std::out_of_range("Block index out of bounds");
         return blocks[row][col];
     }
 
-    const Matrix<T>& getBlock(int row, int col) const
+    const Matrix<T>& getBlock(size_t row, size_t col) const
     {
-        if (row < 0 || row >= numRows || col < 0 || col >= numCols)
+        if (row >= numRows || col >= numCols)
             throw std::out_of_range("Block index out of bounds");
         return blocks[row][col];
     }
 
     // 获取分块矩阵的行数和列数
-    int getTotalRows() const noexcept { return numRows * blockSize; }
-    int getTotalCols() const noexcept { return numCols * blockSize; }
-    int getBlockRows() const noexcept { return numRows; }
-    int getBlockCols() const noexcept { return numCols; }
+    size_t getTotalRows() const noexcept { return numRows * blockSize; }
+    size_t getTotalCols() const noexcept { return numCols * blockSize; }
+    size_t getBlockRows() const noexcept { return numRows; }
+    size_t getBlockCols() const noexcept { return numCols; }
     
-    static BlockMatrix<T> identity(int numRows, int numCols, int blockSize)
+    static BlockMatrix<T> identity(size_t numRows, size_t numCols, size_t blockSize)
     {
         BlockMatrix<T> res(numRows, numCols, blockSize);
         if(numRows != numCols)
             throw std::invalid_argument("Identity block matrix must be square matrix");
-        for(int i = 0; i < numRows; i++)
+        for(size_t i = 0; i < numRows; i++)
         {
             res.getBlock(i, i).setToIdentity();
         }
@@ -82,8 +82,8 @@ public:
     // 矩阵操作
     BlockMatrix<T> transposeBlockMatrix() const {
         BlockMatrix<T> res(numCols, numRows, blockSize);
-        for (int i = 0; i < numRows; i++) {
-            for (int j = 0; j < numCols; j++) {
+        for (size_t i = 0; i < numRows; i++) {
+            for (size_t j = 0; j < numCols; j++) {
                 res.getBlock(j, i) = this->blocks[i][j].transpose();
             }
         }
@@ -95,8 +95,8 @@ public:
             throw std::invalid_argument("Dimensions must match.");
         }
         BlockMatrix<T> res(numRows, numCols, blockSize);
-        for(int i = 0; i < numRows; i++) {
-            for(int j = 0; j < numCols; j++) { // 修正为 numCols
+        for(size_t i = 0; i < numRows; i++) {
+            for(size_t j = 0; j < numCols; j++) { // 修正为 numCols
                 // 使用 . 访问引用，并返回计算好的 res
                 res.getBlock(i, j) = this->blocks[i][j] + other.blocks[i][j];
             }
@@ -109,8 +109,8 @@ public:
             throw std::invalid_argument("BlockMatrix dimensions and block sizes must match for subtraction.");
         }
         BlockMatrix<T> res(numRows, numCols, blockSize);
-        for (int i = 0; i < numRows; i++) {
-            for (int j = 0; j < numCols; j++) {
+        for (size_t i = 0; i < numRows; i++) {
+            for (size_t j = 0; j < numCols; j++) {
                 res.getBlock(i, j) = this->blocks[i][j] - other.blocks[i][j];
             }
         }
@@ -120,8 +120,8 @@ public:
     // 标量乘法
     BlockMatrix<T> operator*(T scalar) const {
         BlockMatrix<T> res(numRows, numCols, blockSize);
-        for (int i = 0; i < numRows; i++) {
-            for (int j = 0; j < numCols; j++) {
+        for (size_t i = 0; i < numRows; i++) {
+            for (size_t j = 0; j < numCols; j++) {
                 res.blocks[i][j] = this->blocks[i][j] * scalar;
             }
         }
@@ -131,8 +131,8 @@ public:
     // 标量除法
     BlockMatrix<T> operator/(T scalar) const {
         BlockMatrix<T> res(numRows, numCols, blockSize);
-        for (int i = 0; i < numRows; i++) {
-            for (int j = 0; j < numCols; j++) {
+        for (size_t i = 0; i < numRows; i++) {
+            for (size_t j = 0; j < numCols; j++) {
                 res.blocks[i][j] = this->blocks[i][j] / scalar;
             }
         }
@@ -142,8 +142,8 @@ public:
     // 负号运算符
     BlockMatrix<T> operator-() const {
         BlockMatrix<T> res(numRows, numCols, blockSize);
-        for (int i = 0; i < numRows; i++) {
-            for (int j = 0; j < numCols; j++) {
+        for (size_t i = 0; i < numRows; i++) {
+            for (size_t j = 0; j < numCols; j++) {
                 res.blocks[i][j] = -this->blocks[i][j];
             }
         }
@@ -155,8 +155,8 @@ public:
     BlockMatrix<T>& operator+=(const BlockMatrix<T>& other) {
         if (numRows != other.numRows || numCols != other.numCols || blockSize != other.blockSize) 
             throw std::invalid_argument("Dimensions mismatch");
-        for (int i = 0; i < numRows; i++) {
-            for (int j = 0; j < numCols; j++) {
+        for (size_t i = 0; i < numRows; i++) {
+            for (size_t j = 0; j < numCols; j++) {
                 this->blocks[i][j] += other.blocks[i][j];
             }
         }
@@ -166,8 +166,8 @@ public:
     BlockMatrix<T>& operator-=(const BlockMatrix<T>& other) {
         if (numRows != other.numRows || numCols != other.numCols || blockSize != other.blockSize) 
             throw std::invalid_argument("Dimensions mismatch");
-        for (int i = 0; i < numRows; i++) {
-            for (int j = 0; j < numCols; j++) {
+        for (size_t i = 0; i < numRows; i++) {
+            for (size_t j = 0; j < numCols; j++) {
                 this->blocks[i][j] -= other.blocks[i][j];
             }
         }
@@ -175,8 +175,8 @@ public:
     }
 
     BlockMatrix<T>& operator*=(T scalar) {
-        for (int i = 0; i < numRows; i++) {
-            for (int j = 0; j < numCols; j++) {
+        for (size_t i = 0; i < numRows; i++) {
+            for (size_t j = 0; j < numCols; j++) {
                 this->blocks[i][j] *= scalar;
             }
         }
@@ -184,8 +184,8 @@ public:
     }
 
     BlockMatrix<T>& operator/=(T scalar) {
-        for (int i = 0; i < numRows; i++) {
-            for (int j = 0; j < numCols; j++) {
+        for (size_t i = 0; i < numRows; i++) {
+            for (size_t j = 0; j < numCols; j++) {
                 this->blocks[i][j] /= scalar;
             }
         }
@@ -200,10 +200,10 @@ public:
     BlockMatrix<T> res(numRows, other.numCols, blockSize);
 
     // 2. 执行矩阵乘法逻辑
-    for (int i = 0; i < numRows; i++) {
-        for (int j = 0; j < other.numCols; j++) {
+    for (size_t i = 0; i < numRows; i++) {
+        for (size_t j = 0; j < other.numCols; j++) {
             // 这里可以进一步优化：先清除 res 的当前块（如果是新构造的则已经是零矩阵）
-            for (int k = 0; k < numCols; k++) {
+            for (size_t k = 0; k < numCols; k++) {
                 res.blocks[i][j] += this->blocks[i][k] * other.blocks[k][j];
             }
         }
@@ -228,34 +228,55 @@ BlockMatrix<T> operator*(const BlockMatrix<T>& other) const {
 
     // 显示
     void display(T eps = static_cast<T>(1e-9)) const {
-        std::cout << "BlockMatrix (" << getTotalRows() << "x" << getTotalCols() << "):" << std::endl;
-        for (int i = 0; i < numRows; i++) {
-            for (int rowInBlock = 0; rowInBlock < blockSize; rowInBlock++) {
-                for (int j = 0; j < numCols; j++) {
-                    for (int colInBlock = 0; colInBlock < blockSize; colInBlock++) {
+        std::cout << "\033[36m" << "BlockMatrix (" << getTotalRows() << "x" << getTotalCols() << "):" << "\033[0m" << std::endl;
+        
+        // 顶部边框
+        std::cout << "  \u250c";
+        for (size_t j = 0; j < numCols * blockSize; j++) std::cout << "           ";
+        std::cout << " \u2510" << std::endl;
+
+        for (size_t i = 0; i < numRows; i++) {
+            for (size_t rowInBlock = 0; rowInBlock < blockSize; rowInBlock++) {
+                std::cout << "  \u2502 ";
+                for (size_t j = 0; j < numCols; j++) {
+                    for (size_t colInBlock = 0; colInBlock < blockSize; colInBlock++) {
                         T val = blocks[i][j].at(rowInBlock, colInBlock); 
                         if (std::abs(val) < eps) val = 0;
+                        
+                        if (val == 0) std::cout << "\033[90m";
+                        else std::cout << "\033[37m";
                         std::cout << std::setw(10) << val << " ";
+                        std::cout << "\033[0m";
                     }
-                    std::cout << " | "; 
+                    if (j < numCols - 1) std::cout << "\033[33m|\033[0m "; 
                 }
-                std::cout << std::endl;
+                std::cout << " \u2502" << std::endl;
             }
-            for(int k=0; k < numCols * blockSize * 11; k++) std::cout << "-";
-            std::cout << std::endl;
+            if (i < numRows - 1) {
+                std::cout << "  \u2502 ";
+                for (size_t k = 0; k < numCols * blockSize; k++) {
+                    std::cout << "\033[33m-----------\033[0m";
+                }
+                std::cout << " \u2502" << std::endl;
+            }
         }
+
+        // 底部边框
+        std::cout << "  \u2514";
+        for (size_t j = 0; j < numCols * blockSize; j++) std::cout << "           ";
+        std::cout << " \u2518" << std::endl;
     }
 
     // 初等行变换
-    void exchangeBlockRows(int i, int j)
+    void exchangeBlockRows(size_t i, size_t j)
     {
         if(i >= numRows || j >= numRows)
             throw std::out_of_range("Block row index out of range");
         std::swap(blocks[i],blocks[j]);
     }
 
-    void scaleBlockRow(int i, const Matrix<T>& multiplier) {
-        if (i < 0 || i >= numRows)
+    void scaleBlockRow(size_t i, const Matrix<T>& multiplier) {
+        if (i >= numRows)
             throw std::out_of_range("Block row index out of range");
         if (multiplier.getCols() != blockSize)
             throw std::invalid_argument("Scaling factor dimensions don't match");
@@ -263,22 +284,22 @@ BlockMatrix<T> operator*(const BlockMatrix<T>& other) const {
             if (std::abs(multiplier.determinant()) < static_cast<T>(1e-9))
                 throw std::invalid_argument("Scaling factor too small");
         }
-        for (int j = 0; j < numCols; j++) {
+        for (size_t j = 0; j < numCols; j++) {
             blocks[i][j] = multiplier * blocks[i][j];
         }
     }
 
-    void addScaledBlockRow(int targetRow, int sourceRow, const Matrix<T>& multiplier){
-        if (targetRow < 0 || targetRow >= numRows || sourceRow < 0 || sourceRow >= numRows || multiplier.getCols() != blockSize) {
+    void addScaledBlockRow(size_t targetRow, size_t sourceRow, const Matrix<T>& multiplier){
+        if (targetRow >= numRows || sourceRow >= numRows || multiplier.getCols() != blockSize) {
             throw std::out_of_range("Block row index out of range");
         }
-        for(int j = 0; j < numCols; j++){
+        for(size_t j = 0; j < numCols; j++){
             blocks[targetRow][j] += multiplier * blocks[sourceRow][j]; 
         }
     }
 
     // 分块初等矩阵
-    static BlockMatrix<T> blockSwapMatrix(int totalBlockRows, int blockSize, int i, int j) {
+    static BlockMatrix<T> blockSwapMatrix(size_t totalBlockRows, size_t blockSize, size_t i, size_t j) {
         // 1. 先生成一个分块单位阵
         BlockMatrix<T> E = BlockMatrix<T>::identity(totalBlockRows, totalBlockRows, blockSize);
         // 2. 交换第 i 行和第 j 行的块（此时 E 的 i,i 和 j,j 变成了 0，i,j 和 j,i 变成了 I）
@@ -287,14 +308,14 @@ BlockMatrix<T> operator*(const BlockMatrix<T>& other) const {
         return E;
     }
 
-    static BlockMatrix<T> blockScalingMatrix(int totalBlockRows, int blockSize, int i, const Matrix<T>& M) {
+    static BlockMatrix<T> blockScalingMatrix(size_t totalBlockRows, size_t blockSize, size_t i, const Matrix<T>& M) {
         BlockMatrix<T> E = BlockMatrix<T>::identity(totalBlockRows, totalBlockRows, blockSize);
         // 将第 i 个对角块替换为 M
         E.getBlock(i, i) = M;
         return E;
     }
 
-    static BlockMatrix<T> blockAdditionMatrix(int totalBlockRows, int blockSize, int i, int j, const Matrix<T>& M) {
+    static BlockMatrix<T> blockAdditionMatrix(size_t totalBlockRows, size_t blockSize, size_t i, size_t j, const Matrix<T>& M) {
         // E = I
         BlockMatrix<T> E = BlockMatrix<T>::identity(totalBlockRows, totalBlockRows, blockSize);
         // 在 (i, j) 位置放入 M
@@ -306,17 +327,17 @@ BlockMatrix<T> operator*(const BlockMatrix<T>& other) const {
     // 把分块矩阵转换为普通矩阵
     // 在BlockMatrix类中添加：
     Matrix<T> toMatrix() const {
-        int totalRows = getTotalRows();
-        int totalCols = getTotalCols();
+        size_t totalRows = getTotalRows();
+        size_t totalCols = getTotalCols();
         Matrix<T> result(totalRows, totalCols);
     
-        for(int blockRow = 0; blockRow < numRows; blockRow++) {
-            for(int blockCol = 0; blockCol < numCols; blockCol++) {
+        for(size_t blockRow = 0; blockRow < numRows; blockRow++) {
+            for(size_t blockCol = 0; blockCol < numCols; blockCol++) {
                 const Matrix<T>& block = blocks[blockRow][blockCol];
-                for(int i = 0; i < blockSize; i++) {
-                    for(int j = 0; j < blockSize; j++) {
-                        int globalRow = blockRow * blockSize + i;
-                        int globalCol = blockCol * blockSize + j;
+                for(size_t i = 0; i < blockSize; i++) {
+                    for(size_t j = 0; j < blockSize; j++) {
+                        size_t globalRow = blockRow * blockSize + i;
+                        size_t globalCol = blockCol * blockSize + j;
                         result.at(globalRow, globalCol) = block.at(i, j);
                     }
                 }

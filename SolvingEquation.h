@@ -38,10 +38,10 @@ class SolvingEquation
 
         SolutionType solve()
         {
-            int n = augmented.getCols() - 1;
+            size_t n = augmented.getCols() - 1;
             const auto& pivotCols = rrefSolver.getPivotCols();
             // 无解判断: 增广列（最后一列）是否有主元
-            for(int col : pivotCols)
+            for(size_t col : pivotCols)
             {
                 if(col == n)
                 {
@@ -49,7 +49,7 @@ class SolvingEquation
                     return type;
                 }
             }
-            if(static_cast<int>(pivotCols.size()) == n)
+            if(pivotCols.size() == n)
                 type = SolutionType::UniqueSolution;
             else 
                 type = SolutionType::InfiniteSolutions;
@@ -64,25 +64,25 @@ class SolvingEquation
             if (type == SolutionType::NoSolution)
                 throw std::logic_error("No solution exists");
 
-            int n = augmented.getCols() - 1;
+            size_t n = augmented.getCols() - 1;
             const auto& pivotCols = rrefSolver.getPivotCols();
             
             if (type == SolutionType::UniqueSolution) {
                 std::vector<T> part_vec(n);
-                for (int i = 0; i < n; i++)
+                for (size_t i = 0; i < n; i++)
                     part_vec[i] = rrefMatrix.at(i, n);
                 particular = Vector<T>(std::move(part_vec));
             } else {
-                std::vector<int> freeCols;
-                for (int j = 0; j < n; j++) {
+                std::vector<size_t> freeCols;
+                for (size_t j = 0; j < n; j++) {
                     bool isPivot = false;
-                    for(int pc : pivotCols) if(pc == j) { isPivot = true; break; }
+                    for(size_t pc : pivotCols) if(pc == j) { isPivot = true; break; }
                     if (!isPivot) freeCols.push_back(j);
                 }
                 
                 std::vector<T> part_vec(n, 0);
-                for (int i = 0; i < static_cast<int>(pivotCols.size()); i++) {
-                    int col = pivotCols[i];
+                for (size_t i = 0; i < pivotCols.size(); i++) {
+                    size_t col = pivotCols[i];
                     part_vec[col] = rrefMatrix.at(i, n);
                 }
                 particular = Vector<T>(std::move(part_vec));
@@ -91,8 +91,8 @@ class SolvingEquation
                 for (auto freeCol : freeCols) {
                     std::vector<T> v_vec(n, 0);
                     v_vec[freeCol] = 1;
-                    for (int i = 0; i < static_cast<int>(pivotCols.size()); i++) {
-                        int pcol = pivotCols[i];
+                    for (size_t i = 0; i < pivotCols.size(); i++) {
+                        size_t pcol = pivotCols[i];
                         v_vec[pcol] = -rrefMatrix.at(i, freeCol);
                     }
                     nullspace.push_back(Vector<T>(std::move(v_vec)));
@@ -101,7 +101,7 @@ class SolvingEquation
         }
 
         void printSolution() const {
-            int n = particular.size();
+            size_t n = particular.size();
             if (type == SolutionType::NoSolution) {
                 std::cout << "The system has NO solution" << std::endl;
                 return;
@@ -110,7 +110,7 @@ class SolvingEquation
             {
                 std::cout << "Unique solution:" << std::endl;
                 std::cout << "x = ( ";
-                for (int i = 0; i < n; i++) {
+                for (size_t i = 0; i < n; i++) {
                     std::cout << particular[i];
                     if (i != n - 1) std::cout << ", ";
                 }
@@ -121,16 +121,16 @@ class SolvingEquation
             //无穷解
             // 特解
             std::cout << "x = ( ";
-            for (int i = 0; i < n; i++) {
+            for (size_t i = 0; i < n; i++) {
                 std::cout << particular[i];
                 if (i != n - 1) std::cout << ", ";
             }
             std::cout << " )^T" << std::endl;
 
             // 齐次解空间
-            for (int i = 0; i < nullspace.size(); i++) {
+            for (size_t i = 0; i < nullspace.size(); i++) {
                 std::cout << "  + t" << i + 1 << " * ( ";
-                for (int j = 0; j < n; j++) {
+                for (size_t j = 0; j < n; j++) {
                     std::cout << nullspace[i][j];
                     if (j != n - 1) std::cout << ", ";
                 }

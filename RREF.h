@@ -10,9 +10,9 @@ template <typename T>
 class RREF {
 private:
     Matrix<T> mat;
-    int rank = 0;
-    std::vector<int> pivotCols;
-    std::vector<int> pivotRows;
+    size_t rank = 0;
+    std::vector<size_t> pivotCols;
+    std::vector<size_t> pivotRows;
     bool isREF = false;
     bool isRREF = false;
 
@@ -20,18 +20,18 @@ public:
     RREF(const Matrix<T>& inputMat) : mat(inputMat), rank(0) {}
 
     void toREF(T eps = static_cast<T>(1e-9)) {
-        int rows = mat.getRows();
-        int cols = mat.getCols();
-        int pivotRow = 0;
+        size_t rows = mat.getRows();
+        size_t cols = mat.getCols();
+        size_t pivotRow = 0;
         rank = 0;
         pivotCols.clear();
         pivotRows.clear();
 
-        for (int col = 0; col < cols && pivotRow < rows; col++) {
+        for (size_t col = 0; col < cols && pivotRow < rows; col++) {
             // 鲁棒的主元选择：寻找当前列绝对值最大的行
-            int max_index = pivotRow;
+            size_t max_index = pivotRow;
             T max_val = std::abs(mat.at(pivotRow, col));
-            for (int row = pivotRow + 1; row < rows; row++) {
+            for (size_t row = pivotRow + 1; row < rows; row++) {
                 T current_val = std::abs(mat.at(row, col));
                 if (current_val > max_val) {
                     max_val = current_val;
@@ -49,7 +49,7 @@ public:
             pivotCols.push_back(col);
             pivotRows.push_back(pivotRow);
 
-            for (int row = pivotRow + 1; row < rows; row++) {
+            for (size_t row = pivotRow + 1; row < rows; row++) {
                 if (std::abs(mat.at(row, col)) < eps) {
                     mat.at(row, col) = 0;
                     continue;
@@ -64,33 +64,34 @@ public:
     }
 
     void toRREF(T eps = static_cast<T>(1e-9)) {
-        int rows = mat.getRows();
-        int cols = mat.getCols();
+        size_t rows = mat.getRows();
+        size_t cols = mat.getCols();
         if (!isREF) toREF(eps);
 
-        for (int i = 0; i < rank; i++) {
-            int row = pivotRows[i];
-            int col = pivotCols[i];
+        for (size_t i = 0; i < rank; i++) {
+            size_t row = pivotRows[i];
+            size_t col = pivotCols[i];
             T scaleFactor = static_cast<T>(1) / mat.at(row, col);
             mat.scaleRow(row, scaleFactor);
         }
 
-        for (int i = rank - 1; i >= 0; i--) {
-            int row = pivotRows[i];
-            int col = pivotCols[i];
-            for (int upperRow = row - 1; upperRow >= 0; upperRow--) {
-                if (std::abs(mat.at(upperRow, col)) < eps) {
-                    mat.at(upperRow, col) = 0;
+        for (size_t i = rank; i > 0; i--) {
+            size_t row = pivotRows[i - 1];
+            size_t col = pivotCols[i - 1];
+            for (size_t upperRow = row; upperRow > 0; upperRow--) {
+                size_t actualUpperRow = upperRow - 1;
+                if (std::abs(mat.at(actualUpperRow, col)) < eps) {
+                    mat.at(actualUpperRow, col) = 0;
                     continue;
                 }
-                T factor = -mat.at(upperRow, col);
-                mat.addScaledRow(upperRow, row, factor);
-                mat.at(upperRow, col) = 0;
+                T factor = -mat.at(actualUpperRow, col);
+                mat.addScaledRow(actualUpperRow, row, factor);
+                mat.at(actualUpperRow, col) = 0;
             }
         }
 
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
+        for (size_t i = 0; i < rows; i++) {
+            for (size_t j = 0; j < cols; j++) {
                 if (std::abs(mat.at(i, j)) < eps) mat.at(i, j) = 0;
             }
         }
@@ -102,10 +103,10 @@ public:
         std::cout << "Rank of the matrix is: " << rank << std::endl;
     }
 
-    int getRank() const noexcept { return rank; }
+    size_t getRank() const noexcept { return rank; }
     const Matrix<T>& getMatrix() const noexcept { return mat; }
-    const std::vector<int>& getPivotCols() const noexcept { return pivotCols; }
-    const std::vector<int>& getPivotRows() const noexcept { return pivotRows; }
+    const std::vector<size_t>& getPivotCols() const noexcept { return pivotCols; }
+    const std::vector<size_t>& getPivotRows() const noexcept { return pivotRows; }
 
     void setMatrix(const Matrix<T>& m) {
         mat = m;
@@ -119,23 +120,23 @@ public:
     std::vector<Vector<T>> getKernel(T eps = static_cast<T>(1e-9)) {
         if(!isRREF) toRREF(eps);
 
-        int n = mat.getCols();
+        size_t n = mat.getCols();
         std::vector<Vector<T>> basis;
-        std::vector<int> freeCols;
+        std::vector<size_t> freeCols;
  
-        for(int j = 0; j < n; j++){
+        for(size_t j = 0; j < n; j++){
             bool isPivot = false;
-            for(int pc : pivotCols){
+            for(size_t pc : pivotCols){
                 if(pc == j){ isPivot = true; break; }
             }
             if(!isPivot) freeCols.push_back(j);
         }
-        for (int freeCol : freeCols) {
+        for (size_t freeCol : freeCols) {
             std::vector<T> v_vec(n, 0);
             v_vec[freeCol] = 1;
-            for (int i = 0; i < rank; i++) {
-                int pCol = pivotCols[i];
-                int pRow = pivotRows[i];
+            for (size_t i = 0; i < rank; i++) {
+                size_t pCol = pivotCols[i];
+                size_t pRow = pivotRows[i];
                 v_vec[pCol] = -mat.at(pRow, freeCol);
             }
             basis.push_back(Vector<T>(std::move(v_vec)));
@@ -159,7 +160,7 @@ template <typename T>
 int Matrix<T>::rank() const {
     RREF<T> rrefSolver(*this);
     rrefSolver.toRREF();
-    return rrefSolver.getRank();
+    return static_cast<int>(rrefSolver.getRank());
 }
 
 template <typename T>
@@ -167,13 +168,15 @@ typename Matrix<T>::EigenDecomposition Matrix<T>::eigen(int max_iter) const {
     if (!isSquare()) throw std::logic_error("Eigen decomposition only for square matrices");
     
     Matrix<T> A_iter = *this;
-    for(int k=0; k<max_iter; k++) {
-        auto [Q, R] = A_iter.qr_decomposition();
+    for(size_t k=0; k<static_cast<size_t>(max_iter); k++) {
+        std::pair<Matrix<T>, Matrix<T>> qr = A_iter.qr_decomposition();
+        Matrix<T> Q = qr.first;
+        Matrix<T> R = qr.second;
         A_iter = R * Q;
     }
 
     EigenDecomposition result;
-    for(int i=0; i<rows; i++) result.eigenvalues.push_back(A_iter.at(i, i));
+    for(size_t i=0; i<rows; i++) result.eigenvalues.push_back(A_iter.at(i, i));
 
     for (T lam : result.eigenvalues) {
         Matrix<T> LambdaI = Matrix<T>::identity(rows) * lam;
