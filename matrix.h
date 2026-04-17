@@ -26,6 +26,11 @@ public:
         std::vector<Vector<T>> eigenvectors;
     };
 
+    struct DiagonalizationResult {
+        Matrix<T> P;
+        Matrix<T> D;
+    };
+
     template <typename U>
     friend class RREF;
 
@@ -59,6 +64,13 @@ public:
         rows = static_cast<int>(v.size());
         cols = static_cast<int>(v[0].size());
         data = std::move(v);
+    }
+
+    // 从 Vector 构造列矩阵 (n x 1)
+    Matrix(const Vector<T>& v) : rows(v.size()), cols(1), data(v.size(), std::vector<T>(1)) {
+        for (size_t i = 0; i < v.size(); ++i) {
+            data[i][0] = v[i];
+        }
     }
 
     // 移动语义
@@ -210,6 +222,19 @@ public:
                 for(size_t k = 0; k < cols; k++)
                     result.at(i,j) += data[i][k] * other.data[k][j];
         return result;
+    }
+
+    // 矩阵乘以向量 -> 向量
+    Vector<T> operator*(const Vector<T>& v) const {
+        if (cols != v.size())
+            throw std::invalid_argument("Matrix columns must match vector size for multiplication");
+        std::vector<T> result_vec(rows, T());
+        for (size_t i = 0; i < rows; ++i) {
+            for (size_t k = 0; k < cols; ++k) {
+                result_vec[i] += data[i][k] * v[k];
+            }
+        }
+        return Vector<T>(std::move(result_vec));
     }
 
     Matrix<T> operator*(T scalar) const {
@@ -427,9 +452,9 @@ public:
 
     bool isSquare() const { return rows == cols; }
 
-    bool isDiagonalizable() const {
-        throw std::logic_error("Diagonalizability not implemented");
-    }
+    bool isDiagonalizable() const;
+
+    DiagonalizationResult diagonalize() const;
 
     T determinant(T eps = static_cast<T>(1e-9)) const {
         if (rows != cols) throw std::domain_error("Must be square");
@@ -500,6 +525,45 @@ public:
             for(size_t j=0; j<i; j++)
                 R.at(i, j) = 0;
         return {Q, R};
+    }
+
+    // 矩阵 1-范数：列模和的最大值
+    T norm1() const {
+        if (cols == 0) return 0;
+        T maxColSum = 0;
+        for (size_t j = 0; j < cols; j++) {
+            T colSum = 0;
+            for (size_t i = 0; i < rows; i++) {
+                colSum += std::abs(data[i][j]);
+            }
+            if (j == 0 || colSum > maxColSum) maxColSum = colSum;
+        }
+        return maxColSum;
+    }
+
+    // 矩阵 ∞-范数：行模和的最大值
+    T normInf() const {
+        if (rows == 0) return 0;
+        T maxRowSum = 0;
+        for (size_t i = 0; i < rows; i++) {
+            T rowSum = 0;
+            for (size_t j = 0; j < cols; j++) {
+                rowSum += std::abs(data[i][j]);
+            }
+            if (i == 0 || rowSum > maxRowSum) maxRowSum = rowSum;
+        }
+        return maxRowSum;
+    }
+
+    // Frobenius 范数：所有元素平方和的平方根
+    T normFrobenius() const {
+        T sumSq = 0;
+        for (size_t i = 0; i < rows; i++) {
+            for (size_t j = 0; j < cols; j++) {
+                sumSq += data[i][j] * data[i][j];
+            }
+        }
+        return std::sqrt(sumSq);
     }
 };
 

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <algorithm> 
+#include "VectorSet.h"
 
 template <typename T>
 class RREF {
@@ -28,7 +29,6 @@ public:
         pivotRows.clear();
 
         for (size_t col = 0; col < cols && pivotRow < rows; col++) {
-            // 鲁棒的主元选择：寻找当前列绝对值最大的行
             size_t max_index = pivotRow;
             T max_val = std::abs(mat.at(pivotRow, col));
             for (size_t row = pivotRow + 1; row < rows; row++) {
@@ -56,7 +56,7 @@ public:
                 }
                 T factor = -mat.at(row, col) / mat.at(pivotRow, col);
                 mat.addScaledRow(row, pivotRow, factor);
-                mat.at(row, col) = 0; // 强制置零避免数值误差
+                mat.at(row, col) = 0; 
             }
             pivotRow++;
         }
@@ -145,17 +145,6 @@ public:
     }
 };
 
-// =========================================================
-// 延迟实现的 Matrix<T> 成员函数
-// ---------------------------------------------------------
-// 架构原因: Matrix::rank() 和 Matrix::eigen() 需要完整的
-// RREF<T> 定义，而 RREF<T> 又依赖完整的 Matrix<T> 定义，
-// 形成循环依赖。解决方案:
-//   1. matrix.h 中前置声明 RREF<T>，仅声明这两个方法
-//   2. 本文件在 RREF<T> 定义之后提供实现
-//   3. matrix.h 末尾 #include "RREF.h" 确保调用方自动获得实现
-// =========================================================
-
 template <typename T>
 int Matrix<T>::rank() const {
     RREF<T> rrefSolver(*this);
@@ -176,22 +165,64 @@ typename Matrix<T>::EigenDecomposition Matrix<T>::eigen(int max_iter) const {
     }
 
     EigenDecomposition result;
-    for(size_t i=0; i<rows; i++) result.eigenvalues.push_back(A_iter.at(i, i));
+    T eps = static_cast<T>(1e-9);
 
-    for (T lam : result.eigenvalues) {
-        Matrix<T> LambdaI = Matrix<T>::identity(rows) * lam;
+    std::vector<T> all_lambdas;
+    for(size_t i=0; i<rows; i++) all_lambdas.push_back(A_iter.at(i, i));
+
+    std::vector<T> unique_lambdas;
+    for (T lam : all_lambdas) {
+        bool found = false;
+        for (T ul : unique_lambdas) {
+            if (std::abs(lam - ul) < eps * 10) { 
+                found = true;
+                break;
+            }
+        }
+        if (!found) unique_lambdas.push_back(lam);
+    }
+
+    result.eigenvalues.clear();
+    result.eigenvectors.clear();
+    for (T lam : unique_lambdas) {
+        Matrix<T> LambdaI = Matrix<T>::identity(static_cast<int>(rows)) * lam;
         Matrix<T> CharacteristicMat = (*this) - LambdaI;
         
         RREF<T> solver(CharacteristicMat);
-        std::vector<Vector<T>> basis = solver.getKernel();
+        std::vector<Vector<T>> basis = solver.getKernel(eps);
 
         if (!basis.empty()) {
-            for(auto& v : basis) {
-                try { result.eigenvectors.push_back(v.normalized()); } 
-                catch (...) { result.eigenvectors.push_back(v); }
+            auto orthoBasis = VectorSet<T>::gramSchmidt(basis, true);
+            for(auto& v : orthoBasis) {
+                result.eigenvalues.push_back(lam);
+                result.eigenvectors.push_back(v);
             }
-        } else {
-            result.eigenvectors.push_back(Vector<T>(rows, 0)); 
+        }
+    }
+    return result;
+}
+
+template <typename T>
+bool Matrix<T>::isDiagonalizable() const {
+    if (!isSquare()) return false;
+    if (isSymmetric()) return true;
+    auto eig = this->eigen();
+    return (eig.eigenvectors.size() == rows);
+}
+
+template <typename T>
+typename Matrix<T>::DiagonalizationResult Matrix<T>::diagonalize() const {
+    if (!isDiagonalizable()) throw std::logic_error("Matrix is not diagonalizable");
+    
+    auto eig = this->eigen();
+    DiagonalizationResult result;
+    result.D = Matrix<T>::zero(static_cast<int>(rows));
+    result.P = Matrix<T>(rows, rows);
+
+    for (size_t i = 0; i < eig.eigenvectors.size(); i++) {
+        result.D.at(i, i) = eig.eigenvalues[i];
+        for (size_t row = 0; row < rows; row++) {
+            result.P.at(row, i) = eig.eigenvectors[i][row];
         }
     }
     return result;

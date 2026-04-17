@@ -116,6 +116,23 @@ class Vector{
             return std::sqrt(this->dot(*this));
         }
 
+        // 1-范数：元素绝对值之和
+        T norm1() const {
+            T sum = 0;
+            for (const auto& el : data) sum += std::abs(el);
+            return sum;
+        }
+
+        // ∞-范数：元素绝对值的最大值
+        T normInf() const {
+            if (data.empty()) return 0;
+            T maxVal = std::abs(data[0]);
+            for (size_t i = 1; i < data.size(); i++) {
+                maxVal = std::max(maxVal, std::abs(data[i]));
+            }
+            return maxVal;
+        }
+
         Vector<T> normalized(T eps = 1e-9) const {
             T n = norm();
             if (n < eps)
