@@ -35,6 +35,7 @@
 #include "SolvingEquation.h" // Layer 3: 方程组求解 (依赖 RREF.h)
 #include "BlockMatrix.h"   // Layer 3: 分块矩阵 (依赖 matrix.h)
 #include "QuadraticForm.h" // Layer 3: 二次型 (依赖 matrix.h/RREF.h)
+#include "SVD.h"           // Layer 4: SVD 分解实验室
 
 void enableANSI() {
 #ifdef _WIN32
@@ -175,7 +176,7 @@ void demoDiagonalization() {
             auto res = A.diagonalize();
             std::cout << GREEN << BOLD << "\n[ 对角化成功 ]" << RESET << std::endl;
             std::cout << YELLOW << "变换矩阵 P (特征向量构成):" << RESET << std::endl;
-            res.P.display();
+            res.P.display();                          
             std::cout << YELLOW << "对角矩阵 D (特征值):" << RESET << std::endl;
             res.D.display();
 
@@ -302,6 +303,24 @@ void demoBlockMatrix() {
     (BM * BM).display();
 }
 
+void demoSVD() {
+    std::cout << CYAN << BOLD << "\n--- [ SVD 奇异值分解实验室 ] ---" << RESET << std::endl;
+    int m, n;
+    std::cout << YELLOW << "请输入矩阵行数 m: " << RESET; std::cin >> m;
+    std::cout << YELLOW << "请输入矩阵列数 n: " << RESET; std::cin >> n;
+
+    Matrix<double> A(m, n);
+    std::cout << YELLOW << "请输入 " << m << "x" << n << " 矩阵 A 的元素: " << RESET << std::endl;
+    for (int i = 0; i < m; ++i)
+        for (int j = 0; j < n; ++j)
+            std::cin >> A.at(i, j);
+
+    SVDSolver<double> svd(A);
+    // 这里会调用你在 SVD.h 中实现的 compute()
+    auto res = svd.compute();
+    svd.display(res);
+}
+
 void printSystemBoot() {
     auto sleep_ms = [](int ms) {
         std::this_thread::sleep_for(std::chrono::milliseconds(ms));
@@ -352,6 +371,7 @@ void printDecoratedMenu() {
     printItem("4", "分块矩阵演示 (Block Matrix)");
     printItem("5", "矩阵对角化 (Diagonalization)");
     printItem("6", "二次型化标准型 (Quadratic Form)");
+    printItem("7", "SVD 奇异值分解实验室");
     
     std::cout << GRID_GRAY << "├──────────────────────────────────────────────────────────┤" << RESET << std::endl;
     std::cout << GRID_GRAY << "│" << RED << "  [0] 退出系统" << std::setw(45) << " " << GRID_GRAY << "│" << RESET << std::endl;
@@ -382,6 +402,7 @@ int main() {
             case 4: demoBlockMatrix(); break;
             case 5: demoDiagonalization(); break;
             case 6: demoQuadraticForm(); break;
+            case 7: demoSVD(); break;
             case 0: 
                 std::cout << NEON_PINK << BOLD << "感谢使用，系统正在下线..." << RESET << std::endl; 
                 return 0;

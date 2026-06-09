@@ -31,6 +31,16 @@ public:
         Matrix<T> D;
     };
 
+    struct LUDecomposition {
+        Matrix<T> L;
+        Matrix<T> U;
+        std::vector<size_t> P; // Permutation vector
+    };
+
+    struct CholeskyDecomposition {
+        Matrix<T> L;           // A = L * L^T
+    };
+
     template <typename U>
     friend class RREF;
 
@@ -107,6 +117,23 @@ public:
         return mat;
     }
 
+    /**
+     * 从一组向量构造矩阵，每个向量作为一列
+     */
+    static Matrix fromColumns(const std::vector<Vector<T>>& columns) {
+        if (columns.empty()) return Matrix();
+        size_t r = columns[0].size();
+        size_t c = columns.size();
+        Matrix<T> result(r, c);
+        for (size_t j = 0; j < c; ++j) {
+            if (columns[j].size() != r) throw std::invalid_argument("列向量维度不一致");
+            for (size_t i = 0; i < r; ++i) {
+                result.at(i, j) = columns[j][i];
+            }
+        }
+        return result;
+    }
+
     // -------- Basic Accessors --------
     size_t getRows() const noexcept { return rows; }
     size_t getCols() const noexcept { return cols; }
@@ -121,6 +148,25 @@ public:
         if (r >= rows || c >= cols)
             throw std::out_of_range("Matrix index out of bounds");
         return data[r][c];
+    }
+
+    /**
+     * 获取指定列向量
+     */
+    Vector<T> getCol(size_t j) const {
+        if (j >= cols) throw std::out_of_range("列索引越界");
+        std::vector<T> col(rows);
+        for (size_t i = 0; i < rows; ++i) col[i] = data[i][j];
+        return Vector<T>(std::move(col));
+    }
+
+    /**
+     * 设置指定列向量
+     */
+    void setCol(size_t j, const Vector<T>& v) {
+        if (j >= cols) throw std::out_of_range("列索引越界");
+        if (v.size() != rows) throw std::invalid_argument("向量尺寸与矩阵行数不匹配");
+        for (size_t i = 0; i < rows; ++i) data[i][j] = v[i];
     }
 
     // -------- Printing --------
@@ -333,13 +379,6 @@ public:
         return Vector<T>(data[r]);
     }
 
-    Vector<T> getCol(size_t c) const {
-        if (c >= cols) throw std::out_of_range("Col index out of bounds");
-        std::vector<T> col(rows);
-        for (size_t i = 0; i < rows; i++) col[i] = data[i][c];
-        return Vector<T>(col);
-    }
-
     Matrix<T> augment(const Matrix<T>& other) const {
         if (rows != other.rows) throw std::invalid_argument("Row count must match for augment");
         Matrix<T> result(rows, cols + other.cols);
@@ -380,29 +419,43 @@ public:
         }
     }
 
-    Matrix<T> getInverseMatrix(T eps = static_cast<T>(1e-9)) const {
-        if (this->rows != this->cols) throw std::invalid_argument("Matrix not square");
-        T det = this->determinant(eps);
-        if (std::abs(det) < eps) throw std::invalid_argument("Matrix is singular");
-        int n = static_cast<int>(this->getCols());
-        Matrix<T> augmentedMatrix = this->augment(Matrix<T>::identity(n));
-        for (int i = 0; i < n; i++) {
-            if (std::abs(augmentedMatrix.at(i, i)) < eps) throw std::invalid_argument("Numerical singularity");
-            T scale = augmentedMatrix.at(i, i);
-            for (int j = 0; j < 2 * n; j++) augmentedMatrix.at(i, j) /= scale;
-            for (int j = 0; j < n; j++) {
-                if (i != j) {
-                    T factor = augmentedMatrix.at(j, i);
-                    for (int k = 0; k < 2 * n; k++)
-                        augmentedMatrix.at(j, k) -= factor * augmentedMatrix.at(i, k);
+    Matrix<T> getInverseMatrix(T eps = static_cast<T>(1e-12)) const {
+        if (rows != cols) throw std::invalid_argument("只有方阵可以求逆。");
+        
+        size_t n = rows;
+        Matrix<T> inverse(n, n);
+        
+        try {
+            // 使用 LU 分解求解 AX = I
+            auto decomp = lu(eps);
+            
+            // 对单位矩阵的每一列 e_j 进行求解: AX_j = e_j
+            for (size_t j = 0; j < n; ++j) {
+                // 构造单位向量 e_j
+                Vector<T> b(n, T(0));
+                b[j] = T(1);
+                
+                // 根据置换向量 P 重新排列 b -> Pb
+                Vector<T> Pb(n);
+                for (size_t i = 0; i < n; ++i) {
+                    Pb[i] = b[decomp.P[i]];
+                }
+                
+                // 1. 求解 Ly = Pb (前向替换)
+                Vector<T> y = forwardSubstitution(decomp.L, Pb);
+                // 2. 求解 Ux = y (后向替换)
+                Vector<T> x = backwardSubstitution(decomp.U, y);
+                
+                // 将解填充到逆矩阵的第 j 列
+                for (size_t i = 0; i < n; ++i) {
+                    inverse.at(i, j) = x[i];
                 }
             }
+        } catch (const std::exception& e) {
+            throw std::runtime_error("矩阵求逆失败（可能为奇异矩阵或数值不稳定）: " + std::string(e.what()));
         }
-        Matrix<T> inverseMatrix(n, n);
-        for (int i = 0; i < n; i++)
-            for (int j = 0; j < n; j++)
-                inverseMatrix.at(i, j) = augmentedMatrix.at(i, j + n);
-        return inverseMatrix;
+        
+        return inverse;
     }
 
     bool isOrthogonal(T eps = static_cast<T>(1e-9)) const {
@@ -445,6 +498,109 @@ public:
             sum += va * vb;
         }
         return sum;
+    }
+
+    // -------- 矩阵分解算法 --------
+
+    /**
+     * LU 分解 (Doolittle 算法 + 局部选主元)
+     * 分解 PA = LU，返回 L, U 和置换向量 P
+     */
+    LUDecomposition lu(T eps = static_cast<T>(1e-12)) const {
+        if (rows != cols) throw std::invalid_argument("LU 分解要求方阵。");
+        size_t n = rows;
+        Matrix<T> L = Matrix<T>::identity(n);
+        Matrix<T> U = *this;
+        std::vector<size_t> P(n);
+        for (size_t i = 0; i < n; ++i) P[i] = i;
+
+        for (size_t i = 0; i < n; ++i) {
+            // 局部选主元
+            size_t pivot = i;
+            T maxVal = std::abs(U.data[i][i]);
+            for (size_t k = i + 1; k < n; ++k) {
+                if (std::abs(U.data[k][i]) > maxVal) {
+                    maxVal = std::abs(U.data[k][i]);
+                    pivot = k;
+                }
+            }
+
+            if (maxVal < eps) continue; // 奇异矩阵跳过，交给下一阶段处理
+
+            if (pivot != i) {
+                std::swap(U.data[i], U.data[pivot]);
+                std::swap(P[i], P[pivot]);
+                // L 矩阵在 i 之前的列也要进行行交换（即已填充的系数）
+                for (size_t k = 0; k < i; ++k) {
+                    std::swap(L.data[i][k], L.data[pivot][k]);
+                }
+            }
+
+            for (size_t j = i + 1; j < n; ++j) {
+                L.data[j][i] = U.data[j][i] / U.data[i][i];
+                for (size_t k = i; k < n; ++k) {
+                    U.data[j][k] -= L.data[j][i] * U.data[i][k];
+                }
+            }
+        }
+        return {L, U, P};
+    }
+
+    /**
+     * Cholesky 分解 (A = LL^T)
+     * 仅适用于实对称正定矩阵 (SPD)
+     */
+    CholeskyDecomposition cholesky(T eps = static_cast<T>(1e-12)) const {
+        if (!isSymmetric(eps)) throw std::invalid_argument("Cholesky 分解要求对称矩阵。");
+        size_t n = rows;
+        Matrix<T> L(n, n);
+
+        for (size_t j = 0; j < n; ++j) {
+            T sum = 0;
+            for (size_t k = 0; k < j; ++k) {
+                sum += L.data[j][k] * L.data[j][k];
+            }
+            T d = data[j][j] - sum;
+            if (d < eps) throw std::invalid_argument("矩阵非正定，无法进行 Cholesky 分解。");
+            
+            L.data[j][j] = std::sqrt(d);
+            for (size_t i = j + 1; i < n; ++i) {
+                sum = 0;
+                for (size_t k = 0; k < j; ++k) {
+                    sum += L.data[i][k] * L.data[j][k];
+                }
+                L.data[i][j] = (data[i][j] - sum) / L.data[j][j];
+            }
+        }
+        return {L};
+    }
+
+    // 前向替换: Ly = b
+    static Vector<T> forwardSubstitution(const Matrix<T>& L, const Vector<T>& b) {
+        size_t n = L.rows;
+        std::vector<T> y(n);
+        for (size_t i = 0; i < n; ++i) {
+            T sum = 0;
+            for (size_t j = 0; j < i; ++j) {
+                sum += L.data[i][j] * y[j];
+            }
+            y[i] = (b[i] - sum) / L.data[i][i];
+        }
+        return Vector<T>(std::move(y));
+    }
+
+    // 后向替换: Ux = y
+    static Vector<T> backwardSubstitution(const Matrix<T>& U, const Vector<T>& y) {
+        size_t n = U.rows;
+        std::vector<T> x(n);
+        for (int i = static_cast<int>(n) - 1; i >= 0; --i) {
+            T sum = 0;
+            for (size_t j = i + 1; j < n; ++j) {
+                sum += U.data[i][j] * x[j];
+            }
+            x[i] = (y[i] - sum) / U.data[i][i];
+        }
+        return Vector<T>(std::move(x));
     }
 
     // 延迟定义：实现位于 RREF.h (需要 RREF<T> 完整定义)
